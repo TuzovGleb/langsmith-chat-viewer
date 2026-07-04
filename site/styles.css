@@ -1,0 +1,102 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --accent: #4f5ed7; --accent-2: #6474ea;
+  --ink: #1d2130; --ink-soft: #6b7085;
+  --bg: #f2f3f7; --card: #fff; --line: #e4e6ee;
+}
+body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.topbar { background: rgba(255,255,255,.9); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+          padding: 10px 22px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 5; }
+.topbar h1 { font-size: 16px; font-weight: 650; }
+.topbar h1 a { color: inherit; }
+.topbar .spacer { flex: 1; }
+.nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+select, input[type=text], input[type=password] { padding: 6px 10px; border: 1px solid var(--line);
+  border-radius: 8px; font-size: 13.5px; background: #fff; font-family: inherit; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 8px;
+       border: 1px solid var(--line); background: #fff; font-size: 13.5px; cursor: pointer;
+       color: var(--ink); font-family: inherit; }
+.btn:hover { background: #f4f5fa; text-decoration: none; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #3f4cbb; }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 22px 24px 60px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+        padding: 14px 18px; margin-bottom: 10px; }
+.muted { color: var(--ink-soft); font-size: 13px; }
+.err { background: #fdecec; border: 1px solid #f3b8b8; color: #a12525; padding: 12px 16px;
+       border-radius: 10px; margin-bottom: 16px; white-space: pre-wrap; word-break: break-word; }
+.badge { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 20px;
+         background: #edeff6; color: #565d73; font-weight: 500; }
+.badge.ok { background: #e3f5e8; color: #1d7a3d; }
+.badge.error { background: #fdecec; color: #a12525; }
+.loading { text-align: center; padding: 50px 0; color: var(--ink-soft); font-size: 14px; }
+
+.run-row { display: block; color: inherit; transition: border-color .1s, box-shadow .1s; cursor: pointer; }
+.run-row:hover { text-decoration: none; border-color: #c3c9e8; box-shadow: 0 2px 10px rgba(70,80,180,.08); }
+.run-row .title { font-weight: 600; font-size: 14.5px; margin-bottom: 4px; display: flex;
+                  gap: 10px; align-items: center; flex-wrap: wrap; }
+.run-row .preview { color: var(--ink-soft); font-size: 13.5px; overflow: hidden;
+                    text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- экран пароля ---------- */
+.lock { max-width: 420px; margin: 12vh auto 0; text-align: center; }
+.lock .icon { font-size: 46px; margin-bottom: 14px; }
+.lock h2 { font-size: 19px; margin-bottom: 8px; }
+.lock p { margin-bottom: 20px; }
+.lock form { display: flex; gap: 8px; }
+.lock input { flex: 1; padding: 10px 14px; font-size: 15px; }
+.lock .err { margin-top: 14px; text-align: left; }
+
+/* ---------- чат ---------- */
+.chat { max-width: 780px; margin: 0 auto; }
+.msg { margin: 18px 0; display: flex; }
+.msg .bubble { max-width: 82%; padding: 11px 16px; border-radius: 16px; font-size: 14.5px;
+               line-height: 1.6; word-break: break-word; overflow-wrap: anywhere; }
+.msg.user { justify-content: flex-end; }
+.msg.user .bubble { background: linear-gradient(135deg, var(--accent-2), var(--accent)); color: #fff;
+                    border-bottom-right-radius: 5px; box-shadow: 0 2px 8px rgba(79,94,215,.25); }
+.msg.assistant .bubble { background: var(--card); border: 1px solid var(--line);
+                         border-bottom-left-radius: 5px; box-shadow: 0 1px 3px rgba(20,25,60,.05); }
+.msg.other .bubble { background: #fbf3da; border: 1px solid #ecd9a0; font-size: 13px;
+                     max-width: 90%; color: #6b5b1e; }
+.msg .role { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+             opacity: .55; margin-bottom: 5px; font-weight: 600; }
+.bubble code { background: rgba(20,25,60,.07); border-radius: 5px; padding: 1px 6px;
+               font-family: Consolas, 'Cascadia Mono', monospace; font-size: 13px; }
+.msg.user .bubble code { background: rgba(255,255,255,.22); }
+.bubble a { text-decoration: underline; }
+.msg.user .bubble a { color: #dfe4ff; }
+pre.codeblock { background: #23252e; color: #dfe2ec; padding: 13px 15px; border-radius: 10px;
+                overflow-x: auto; font-size: 12.5px; line-height: 1.5; margin: 8px 0;
+                font-family: Consolas, 'Cascadia Mono', monospace; }
+
+/* свернутые элементы: system, tool calls, tool results */
+details.fold { margin: 8px 0; border: 1px solid var(--line); border-radius: 10px;
+               background: var(--card); overflow: hidden; max-width: 82%; }
+details.fold summary { list-style: none; cursor: pointer; padding: 8px 14px; display: flex;
+                       align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft);
+                       user-select: none; }
+details.fold summary::-webkit-details-marker { display: none; }
+details.fold summary:hover { background: #f6f7fb; }
+details.fold summary .chev { transition: transform .12s; font-size: 10px; opacity: .5; }
+details.fold[open] summary .chev { transform: rotate(90deg); }
+details.fold summary .fname { font-family: Consolas, 'Cascadia Mono', monospace;
+                              font-weight: 600; color: var(--ink); font-size: 12.5px; }
+details.fold summary .fprev { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                              flex: 1; font-family: Consolas, monospace; font-size: 12px; opacity: .75; }
+details.fold .fold-body { border-top: 1px solid var(--line); padding: 10px 14px;
+                          font-size: 13px; line-height: 1.55; }
+details.fold .fold-body pre { background: #f6f7fa; border-radius: 8px; padding: 11px 13px;
+    overflow-x: auto; font-size: 12.5px; line-height: 1.5;
+    font-family: Consolas, 'Cascadia Mono', monospace; white-space: pre-wrap; word-break: break-word; }
+details.fold.syst { max-width: 100%; background: #fdfaf1; border-color: #eddfb4; }
+details.fold.syst summary { color: #8a7833; }
+details.fold.toolcall summary .ticon { color: var(--accent); }
+details.fold.toolres { background: #f4faf8; border-color: #cbe5dd; }
+details.fold.toolres summary { color: #33705f; }
+
+details.raw { margin-top: 34px; }
+details.raw pre { background: #23252e; color: #d7dae2; padding: 16px; border-radius: 10px;
+                  overflow-x: auto; font-size: 12.5px; margin-top: 10px; }
