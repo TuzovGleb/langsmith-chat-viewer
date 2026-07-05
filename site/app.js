@@ -104,6 +104,28 @@ async function readRun(runId) {
   return api('/api/v1/runs/' + runId);
 }
 
+async function listThreadRuns(projectId, metaKey, value, days) {
+  const start = new Date(Date.now() - days * 864e5).toISOString();
+  const body = {
+    session: [projectId], is_root: true, start_time: start, limit: 100,
+    filter: `and(eq(metadata_key, "${metaKey}"), eq(metadata_value, "${value.replace(/"/g, '')}"))`,
+    select: ['id', 'name', 'status', 'error', 'start_time', 'inputs', 'outputs', 'extra'],
+  };
+  const data = await api('/api/v1/runs/query', {method: 'POST', body: JSON.stringify(body)});
+  const runs = data.runs || [];
+  runs.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+  return runs;
+}
+
+/* тред = группа ранов с одинаковым thread_id/session_id/conversation_id в metadata */
+function threadKeyOf(run) {
+  const meta = (run.extra || {}).metadata || {};
+  for (const k of ['thread_id', 'session_id', 'conversation_id']) {
+    if (meta[k]) return {key: k, value: String(meta[k])};
+  }
+  return null;
+}
+
 /* ==================== нормализация сообщений (порт из app.py) ==================== */
 
 const ROLE_MAP = {
@@ -369,18 +391,47 @@ async function renderRuns(projectId, params) {
     if (!projectCache.size) await listProjects(); // прогреваем имена проектов
     runs = await listRuns(projectId, days, limit);
   } catch (e) { return renderError(e); }
-  $app.innerHTML = runs.map(r => {
-    const meta = (r.extra || {}).metadata || {};
-    const thread = meta.thread_id || meta.session_id || meta.conversation_id;
+
+  // группируем раны одного диалога (по thread_id в metadata) в одну карточку
+  runs.sort((a, b) => (b.start_time || '').localeCompare(a.start_time || ''));
+  const cards = [];
+  const groups = new Map();
+  for (const r of runs) {
+    const t = threadKeyOf(r);
+    if (!t) { cards.push({single: r, time: r.start_time}); continue; }
+    let g = groups.get(t.value);
+    if (!g) {
+      g = {thread: t, runs: [], time: r.start_time};
+      groups.set(t.value, g);
+      cards.push(g);
+    }
+    g.runs.push(r); // runs идут по убыванию времени: g.runs[0] — самый свежий
+  }
+
+  $app.innerHTML = cards.map(c => {
+    if (c.single) {
+      const r = c.single;
+      return `
+        <a class="card run-row" href="#/run/${r.id}?project=${projectId}">
+          <div class="title">
+            ${esc(r.name)}
+            ${r.error ? '<span class="badge error">ошибка</span>' : '<span class="badge ok">ok</span>'}
+            <span class="muted" style="font-weight:400">${fmtTime(r.start_time)}</span>
+          </div>
+          <div class="preview">${esc(previewText(r))}</div>
+        </a>`;
+    }
+    const newest = c.runs[0], oldest = c.runs[c.runs.length - 1];
+    const hasError = c.runs.some(r => r.error);
     return `
-      <a class="card run-row" href="#/run/${r.id}?project=${projectId}">
+      <a class="card run-row" href="#/thread/${projectId}/${encodeURIComponent(c.thread.key)}/${encodeURIComponent(c.thread.value)}?days=${days}">
         <div class="title">
-          ${esc(r.name)}
-          ${r.error ? '<span class="badge error">ошибка</span>' : '<span class="badge ok">ok</span>'}
-          <span class="muted" style="font-weight:400">${fmtTime(r.start_time)}</span>
-          ${thread ? `<span class="badge">🧵 ${esc(String(thread).slice(0, 8))}</span>` : ''}
+          🧵 ${esc(newest.name)}
+          <span class="badge">${c.runs.length} сообщ.</span>
+          ${hasError ? '<span class="badge error">ошибка</span>' : '<span class="badge ok">ok</span>'}
+          <span class="muted" style="font-weight:400">${fmtTime(oldest.start_time)} → ${fmtTime(newest.start_time)}</span>
         </div>
-        <div class="preview">${esc(previewText(r))}</div>
+        <div class="preview">${esc(previewText(oldest))}</div>
       </a>`;
   }).join('') || '<p class="muted">Ранов не найдено за выбранный период.</p>';
 }
@@ -453,6 +504,34 @@ async function renderRunDetail(runId, params) {
   renderChat(run, runToMessages(run.inputs || {}, run.outputs || {}), back);
 }
 
+async function renderThread(projectId, metaKey, value, params) {
+  renderLoading('Загрузка диалога');
+  const days = parseInt(params.get('days') || '7', 10);
+  let runs;
+  try {
+    runs = await listThreadRuns(projectId, metaKey, value, days);
+  } catch (e) { return renderError(e); }
+  if (!runs.length) return renderError(new Error('Раны треда не найдены'));
+
+  // склеиваем сообщения всех ранов диалога; дедуп убирает повторы истории
+  const all = [];
+  for (const r of runs) all.push(...runToMessages(r.inputs || {}, r.outputs || {}));
+  const seen = new Set(), messages = [];
+  for (const m of all) {
+    const key = m.role + '\x00' + m.text + '\x00' + JSON.stringify(m.tools) + '\x00' + m.name;
+    if (!seen.has(key)) { seen.add(key); messages.push(m); }
+  }
+
+  const last = runs[runs.length - 1];
+  const headerRun = {
+    name: `${last.name} · ${runs.length} сообщ.`,
+    error: runs.find(r => r.error)?.error || null,
+    start_time: last.start_time,
+    inputs: last.inputs, outputs: last.outputs, extra: last.extra,
+  };
+  renderChat(headerRun, messages, `#/runs/${projectId}`);
+}
+
 /* ------- демо без API (проверка вёрстки): #demo ------- */
 
 function renderDemo() {
@@ -482,6 +561,9 @@ function route() {
   const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'runs' && parts[1]) return renderRuns(parts[1], params);
   if (parts[0] === 'run' && parts[1]) return renderRunDetail(parts[1], params);
+  if (parts[0] === 'thread' && parts[3]) {
+    return renderThread(parts[1], decodeURIComponent(parts[2]), decodeURIComponent(parts[3]), params);
+  }
   return renderProjects();
 }
 
